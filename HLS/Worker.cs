@@ -164,6 +164,8 @@ public class Worker : BackgroundService
                     }
                     catch (Exception ex)
                     {
+                        _logger.LogError(ex.Message + ";;;" + ex.InnerException?.Message + ";;;" + ex.InnerException?.InnerException?.Message);
+
                         var videoName = video.Split("\\")[^1].Split(".")[0];
 
                         if (Directory.Exists($"{hlsPath}\\{videoName}"))
