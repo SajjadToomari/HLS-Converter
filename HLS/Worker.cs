@@ -40,7 +40,7 @@ public class Worker : BackgroundService
 
                 #endregion
 
-                #region Get Videos Path
+                #region Get Video
 
                 _logger.LogInformation("Getting videos", DateTimeOffset.Now);
 
@@ -73,6 +73,7 @@ public class Worker : BackgroundService
 
                         var videoName = video.Split("\\")[^1].Split(".")[0];
 
+                        //the video is proccesed skipping...
                         if (File.Exists($"{hlsPath}\\{videoName}\\video.m3u8"))
                         {
                             _logger.LogInformation($"Skipping Video Number {index} because it's converted before", DateTimeOffset.Now);
@@ -92,6 +93,7 @@ public class Worker : BackgroundService
 
                         var videoName = video.Split("\\")[^1].Split(".")[0];
 
+                        //ffmpeg commands for converting to hls
                         var commands = new string[]
                         {
                         $"-i {video} -profile:v baseline -level 3.0 -s 800x480 -start_number 0 -hls_time 4 -hls_list_size 0 -f hls {hlsPath}\\{videoName}\\480_out.m3u8",
@@ -99,11 +101,11 @@ public class Worker : BackgroundService
                         $"-i {video} -profile:v baseline -level 3.0 -s 1280x720 -start_number 0 -hls_time 4 -hls_list_size 0 -f hls {hlsPath}\\{videoName}\\720_out.m3u8"
                         };
 
-
                         Directory.CreateDirectory($"{hlsPath}\\{videoName}");
 
                         var isAllDoneSuccessfully = true;
 
+                        //starting proccess
                         foreach (var command in commands)
                         {
                             var startInfo = new ProcessStartInfo($"{ffmpegLocation}\\ffmpeg.exe", "-y " + command);
@@ -126,6 +128,7 @@ public class Worker : BackgroundService
                             }
                         }
 
+                        //creating final m3u8 file
                         if (isAllDoneSuccessfully)
                         {
                             using var streamWriter = new StreamWriter($"{hlsPath}\\{videoName}\\video.m3u8", false, Encoding.UTF8);
@@ -141,6 +144,7 @@ public class Worker : BackgroundService
                         }
                         else
                         {
+                            //delete because proccess done with error
                             if (Directory.Exists($"{hlsPath}\\{videoName}"))
                             {
                                 Directory.Delete($"{hlsPath}\\{videoName}", true);
@@ -172,7 +176,7 @@ public class Worker : BackgroundService
 
                 await Task.Delay(5000);
             }
-            catch (Exception ex )
+            catch (Exception ex)
             {
                 _logger.LogError(ex.Message + ";;;" + ex.InnerException?.Message + ";;;" + ex.InnerException?.InnerException?.Message);
                 await Task.Delay(5000);
