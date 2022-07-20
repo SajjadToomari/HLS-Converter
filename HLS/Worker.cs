@@ -14,7 +14,7 @@ public class Worker : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            if (DateTime.Now.Hour >= 22 && DateTime.Now.Hour < 9)
+            if (DateTime.Now.Hour >= 22 && DateTime.Now.Hour < 9 && !stoppingToken.IsCancellationRequested)
             {
                 try
                 {
@@ -62,9 +62,9 @@ public class Worker : BackgroundService
 
                     var index = 0;
 
-                    await Parallel.ForEachAsync(videos, new ParallelOptions { MaxDegreeOfParallelism = thread }, async (video, _) =>
+                    await Parallel.ForEachAsync(videos, new ParallelOptions { MaxDegreeOfParallelism = thread, CancellationToken = stoppingToken }, async (video, ct) =>
                     {
-                        if (!(DateTime.Now.Hour >= 22 && DateTime.Now.Hour < 9))
+                        if (!(DateTime.Now.Hour >= 22 && DateTime.Now.Hour < 9) || ct.IsCancellationRequested)
                         {
                             return;
                         }
@@ -115,7 +115,7 @@ public class Worker : BackgroundService
                             //starting proccess
                             foreach (var command in commands)
                             {
-                                if (!(DateTime.Now.Hour >= 22 && DateTime.Now.Hour < 9))
+                                if (!(DateTime.Now.Hour >= 22 && DateTime.Now.Hour < 9) || ct.IsCancellationRequested)
                                 {
                                     isAllDoneSuccessfully = false;
                                     break;
@@ -133,7 +133,7 @@ public class Worker : BackgroundService
 
                                     var process = new Process() { StartInfo = startInfo, EnableRaisingEvents = true };
 
-                                    var exitCode = await process.WaitForExitAsync(true, null);
+                                    var exitCode = await Extension.WaitForExitAsync(process, true, (exitCode) => { }, ct);
 
                                     if (exitCode != 0)
                                     {
@@ -207,5 +207,10 @@ public class Worker : BackgroundService
             await Task.Delay(5000);
             #endregion
         }
+    }
+
+    public override Task StopAsync(CancellationToken cancellationToken)
+    {
+        return base.StopAsync(cancellationToken);
     }
 }
