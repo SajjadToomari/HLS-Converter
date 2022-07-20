@@ -1,5 +1,10 @@
 ﻿public static class Extension
 {
+    public static bool IsHourBetween(this DateTime time, TimeSpan start, TimeSpan end)
+    {
+        TimeSpan now = DateTime.Now.TimeOfDay;
+        return ((now > start) && (now < end));
+    }
     public static Task<int> WaitForExitAsync(this Process process, bool stdInDataInput, Action<int> onException, CancellationToken cancellationToken = default)
     {
         CancellationTokenRegistration ctRegistration = new CancellationTokenRegistration();

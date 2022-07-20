@@ -3,6 +3,8 @@ public class Worker : BackgroundService
     private readonly ILogger<Worker> _logger;
     private readonly IConfiguration _configuration;
     private readonly object _lockObject = new();
+    private readonly TimeSpan _startTime = new TimeSpan(22, 0, 0);
+    private readonly TimeSpan _endTime = new TimeSpan(9, 0, 0);
 
     public Worker(ILogger<Worker> logger, IConfiguration configuration)
     {
@@ -14,7 +16,7 @@ public class Worker : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            if (DateTime.Now.Hour >= 22 && DateTime.Now.Hour < 9)
+            if (DateTime.Now.IsHourBetween(_startTime, _endTime))
             {
                 try
                 {
@@ -62,9 +64,9 @@ public class Worker : BackgroundService
 
                     var index = 0;
 
-                    await Parallel.ForEachAsync(videos, new ParallelOptions { MaxDegreeOfParallelism = thread }, async (video, _) =>
+                    await Parallel.ForEachAsync(videos, new ParallelOptions { MaxDegreeOfParallelism = thread, CancellationToken = stoppingToken }, async (video, ct) =>
                     {
-                        if (!(DateTime.Now.Hour >= 22 && DateTime.Now.Hour < 9))
+                        if (!DateTime.Now.IsHourBetween(_startTime, _endTime) || ct.IsCancellationRequested)
                         {
                             return;
                         }
@@ -115,7 +117,7 @@ public class Worker : BackgroundService
                             //starting proccess
                             foreach (var command in commands)
                             {
-                                if (!(DateTime.Now.Hour >= 22 && DateTime.Now.Hour < 9))
+                                if (!DateTime.Now.IsHourBetween(_startTime, _endTime) || ct.IsCancellationRequested)
                                 {
                                     isAllDoneSuccessfully = false;
                                     break;
@@ -133,14 +135,14 @@ public class Worker : BackgroundService
 
                                     var process = new Process() { StartInfo = startInfo, EnableRaisingEvents = true };
 
-                                    var exitCode = await process.WaitForExitAsync(true, null);
+                                    var exitCode = await Extension.WaitForExitAsync(process, true, (_) => { }, ct);
 
                                     if (exitCode != 0)
                                     {
                                         isAllDoneSuccessfully = false;
                                         break;
                                     }
-                                }                                
+                                }
                             }
 
                             //creating final m3u8 file
@@ -173,7 +175,7 @@ public class Worker : BackgroundService
                             }
                             else
                             {
-                                if (!(DateTime.Now.Hour >= 22 && DateTime.Now.Hour < 9))
+                                if (!DateTime.Now.IsHourBetween(_startTime, _endTime) || ct.IsCancellationRequested)
                                 {
                                     _logger.LogInformation($"Skip video number {thisindex} because it's out of running time", DateTimeOffset.Now);
                                 }
@@ -197,6 +199,8 @@ public class Worker : BackgroundService
                         }
 
                     });
+
+                    #endregion
                 }
                 catch (Exception ex)
                 {
@@ -205,7 +209,6 @@ public class Worker : BackgroundService
                 }
             }
             await Task.Delay(5000);
-            #endregion
         }
     }
 }
