@@ -1,9 +1,13 @@
 ﻿public static class Extension
 {
-    public static bool IsHourBetween(this DateTime time, TimeSpan start, TimeSpan end)
+    public static bool IsHourBetween(this DateTime now, TimeSpan start, TimeSpan end)
     {
-        TimeSpan now = DateTime.Now.TimeOfDay;
-        return ((now > start) && (now < end));
+        var time = now.TimeOfDay;
+        // Scenario 1: If the start time and the end time are in the same day.
+        if (start <= end)
+            return time >= start && time <= end;
+        // Scenario 2: The start time and end time is on different days.
+        return time >= start || time <= end;
     }
     public static Task<int> WaitForExitAsync(this Process process, bool stdInDataInput, Action<int> onException, CancellationToken cancellationToken = default)
     {

@@ -133,7 +133,7 @@ public class Worker : BackgroundService
                                     startInfo.UseShellExecute = false;
                                     startInfo.WindowStyle = ProcessWindowStyle.Hidden;
 
-                                    var process = new Process() { StartInfo = startInfo, EnableRaisingEvents = true };
+                                    var process = new Process() { StartInfo = startInfo, EnableRaisingEvents = true/*, PriorityClass = ProcessPriorityClass.BelowNormal*/ };
 
                                     var exitCode = await Extension.WaitForExitAsync(process, true, (_) => { }, ct);
 
@@ -188,7 +188,13 @@ public class Worker : BackgroundService
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogError(ex.Message + ";;;" + ex.InnerException?.Message + ";;;" + ex.InnerException?.InnerException?.Message);
+                            var st = new StackTrace(ex, true);
+                            var frame = st.GetFrame(0);
+                            var line = frame.GetFileLineNumber();
+                            var file = frame.GetFileName();
+                            var method = frame.GetMethod();
+
+                            _logger.LogError(ex.Message + ";;;" + ex.InnerException?.Message + ";;;" + ex.InnerException?.InnerException?.Message + "\r\n" + $"{file}:{method}:{line}");
 
                             var videoName = video.Split("\\")[^1].Split(".")[0];
 
@@ -204,7 +210,14 @@ public class Worker : BackgroundService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex.Message + ";;;" + ex.InnerException?.Message + ";;;" + ex.InnerException?.InnerException?.Message);
+                    var st = new StackTrace(ex, true);
+                    var frame = st.GetFrame(0);
+                    var line = frame.GetFileLineNumber();
+                    var file = frame.GetFileName();
+                    var method = frame.GetMethod();
+
+                    _logger.LogError(ex.Message + ";;;" + ex.InnerException?.Message + ";;;" + ex.InnerException?.InnerException?.Message + "\r\n" + $"{file}:{method}:{line}");
+
                     await Task.Delay(5000);
                 }
             }
