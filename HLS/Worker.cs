@@ -3,6 +3,8 @@ public class Worker : BackgroundService
     private readonly ILogger<Worker> _logger;
     private readonly IConfiguration _configuration;
     private readonly object _lockObject = new();
+    private readonly TimeSpan _startTime = new TimeSpan(22, 0, 0);
+    private readonly TimeSpan _endTime = new TimeSpan(9, 0, 0);
 
     public Worker(ILogger<Worker> logger, IConfiguration configuration)
     {
@@ -14,7 +16,7 @@ public class Worker : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            if (DateTime.Now.Hour >= 22 && DateTime.Now.Hour < 9 && !stoppingToken.IsCancellationRequested)
+            if (DateTime.Now.IsHourBetween(_startTime, _endTime))
             {
                 try
                 {
@@ -64,7 +66,7 @@ public class Worker : BackgroundService
 
                     await Parallel.ForEachAsync(videos, new ParallelOptions { MaxDegreeOfParallelism = thread, CancellationToken = stoppingToken }, async (video, ct) =>
                     {
-                        if (!(DateTime.Now.Hour >= 22 && DateTime.Now.Hour < 9) || ct.IsCancellationRequested)
+                        if (!DateTime.Now.IsHourBetween(_startTime, _endTime) || ct.IsCancellationRequested)
                         {
                             return;
                         }
@@ -115,7 +117,7 @@ public class Worker : BackgroundService
                             //starting proccess
                             foreach (var command in commands)
                             {
-                                if (!(DateTime.Now.Hour >= 22 && DateTime.Now.Hour < 9) || ct.IsCancellationRequested)
+                                if (!DateTime.Now.IsHourBetween(_startTime, _endTime) || ct.IsCancellationRequested)
                                 {
                                     isAllDoneSuccessfully = false;
                                     break;
@@ -131,7 +133,7 @@ public class Worker : BackgroundService
                                     startInfo.UseShellExecute = false;
                                     startInfo.WindowStyle = ProcessWindowStyle.Hidden;
 
-                                    var process = new Process() { StartInfo = startInfo, EnableRaisingEvents = true };
+                                    var process = new Process() { StartInfo = startInfo, EnableRaisingEvents = true/*, PriorityClass = ProcessPriorityClass.BelowNormal*/ };
 
                                     var exitCode = await Extension.WaitForExitAsync(process, true, (exitCode) => { }, ct);
 
@@ -140,7 +142,7 @@ public class Worker : BackgroundService
                                         isAllDoneSuccessfully = false;
                                         break;
                                     }
-                                }                                
+                                }
                             }
 
                             //creating final m3u8 file
@@ -173,7 +175,7 @@ public class Worker : BackgroundService
                             }
                             else
                             {
-                                if (!(DateTime.Now.Hour >= 22 && DateTime.Now.Hour < 9))
+                                if (!DateTime.Now.IsHourBetween(_startTime, _endTime) || ct.IsCancellationRequested)
                                 {
                                     _logger.LogInformation($"Skip video number {thisindex} because it's out of running time", DateTimeOffset.Now);
                                 }
@@ -186,7 +188,13 @@ public class Worker : BackgroundService
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogError(ex.Message + ";;;" + ex.InnerException?.Message + ";;;" + ex.InnerException?.InnerException?.Message);
+                            var st = new StackTrace(ex, true);
+                            var frame = st.GetFrame(0);
+                            var line = frame.GetFileLineNumber();
+                            var file = frame.GetFileName();
+                            var method = frame.GetMethod();
+
+                            _logger.LogError(ex.Message + ";;;" + ex.InnerException?.Message + ";;;" + ex.InnerException?.InnerException?.Message + "\r\n" + $"{file}:{method}:{line}");
 
                             var videoName = video.Split("\\")[^1].Split(".")[0];
 
@@ -197,15 +205,23 @@ public class Worker : BackgroundService
                         }
 
                     });
+
+                    #endregion
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex.Message + ";;;" + ex.InnerException?.Message + ";;;" + ex.InnerException?.InnerException?.Message);
+                    var st = new StackTrace(ex, true);
+                    var frame = st.GetFrame(0);
+                    var line = frame.GetFileLineNumber();
+                    var file = frame.GetFileName();
+                    var method = frame.GetMethod();
+
+                    _logger.LogError(ex.Message + ";;;" + ex.InnerException?.Message + ";;;" + ex.InnerException?.InnerException?.Message + "\r\n" + $"{file}:{method}:{line}");
+
                     await Task.Delay(5000);
                 }
             }
             await Task.Delay(5000);
-            #endregion
         }
     }
 
